@@ -10,6 +10,14 @@ const ADD = 1 as const
 const MUL = 2 as const
 const MALLOC = 3 as const
 const OUT = 4 as const
+const JUMP_IF_TRUE = 5 as const
+const JUMP_IF_FALSE = 6 as const
+const LESS_THAN = 7 as const
+const EQ = 8 as const
+
+function getParam(index: number, mode: number) {
+    return mode ? program[index + 2] : program[program[index + 2]]
+}
 
 function parseInstruction(instruction: number) {
     const opcode = instruction % 100
@@ -50,8 +58,54 @@ function out(index: number, params: number[]) {
     console.log(program[memoryPos])
 }
 
+function jumpIfTrue(index: number, params: number[]): number | null {
+    const param1 = params[0] ? program[index + 1] : program[program[index + 1]]
+    const param2 = params[1] ? program[index + 2] : program[program[index + 2]]
+    if(param1) {
+        return param2
+    } else {
+        return null
+    }
+}
+
+function jumpIfFalse(index: number, params: number[]): number | null {
+    const param1 = params[0] ? program[index + 1] : program[program[index + 1]]
+    const param2 = params[1] ? program[index + 2] : program[program[index + 2]]
+
+    if(!param1) {
+        return param2
+    } else {
+        return null
+    }
+}
+
+function lessThan(index: number, params: number[]) {
+    const param1 = params[0] ? program[index + 1] : program[program[index + 1]]
+    const param2 = params[1] ? program[index + 2] : program[program[index + 2]]
+    const memoryPos = params[2] ? index + 3 : program[index + 3]
+
+    if(param1 < param2) {
+        program[memoryPos] = 1
+    } else {
+        program[memoryPos] = 0
+    }
+}
+
+function equals(index: number, params: number[]) {
+    const param1 = params[0] ? program[index + 1] : program[program[index + 1]]
+    const param2 = params[1] ? program[index + 2] : program[program[index + 2]]
+    const memoryPos = params[2] ? index + 3 : program[index + 3]
+
+    if(param1 === param2) {
+        program[memoryPos] = 1
+    } else {
+        program[memoryPos] = 0
+    }
+}
+
 function run(program: number[], input: number): number[] {
     let i = 0
+    let jumpidx = null
     programLoop: while (i < program.length) {
         const { opcode, params } = parseInstruction(program[i])
         switch(opcode) {
@@ -70,6 +124,22 @@ function run(program: number[], input: number): number[] {
             case OUT:
                 out(i, params)
                 i += 2
+                break
+            case JUMP_IF_TRUE:
+                jumpidx = jumpIfTrue(i, params)
+                jumpidx ? i = jumpidx : i += 3
+                break
+            case JUMP_IF_FALSE:
+                jumpidx = jumpIfFalse(i, params)
+                jumpidx ? i = jumpidx : i += 3
+                break
+            case LESS_THAN:
+                lessThan(i, params)
+                i += 4 
+                break
+            case EQ:
+                equals(i, params)
+                i += 4 
                 break
             case EOF:
                 console.log("Process exit")
@@ -90,10 +160,8 @@ async function getInput() {
     const inp = await rl.question('>> ')
     if(inp === ':q') process.exit(0);
 
-    if(inp === '1') {
-        run(program, +inp)
-        process.exit(0)
-    }
+    run(program, +inp)
+    process.exit(0)
 }
 
 getInput()
