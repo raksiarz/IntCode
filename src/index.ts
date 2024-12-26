@@ -3,7 +3,9 @@ import * as path from 'path'
 import * as readline from 'readline/promises'
 import { stdin, stdout } from 'process'
 
-const program = readFileSync(path.resolve(__dirname, 'input.txt'), 'utf-8').split(',').map(i => +i)
+const program = readFileSync(path.resolve(__dirname, 'program.txt'), 'utf-8').split(',').map(i => +i)
+const amp = readFileSync(path.resolve(__dirname, 'amp.txt'), 'utf-8').split(',').map(i => +i)
+const rl = readline.createInterface({ input: stdin, output: stdout })
 
 const EOF = 99 as const
 const ADD = 1 as const
@@ -17,8 +19,11 @@ const EQ = 8 as const
 
 class IntCode {
     program: number[]
-    constructor(program: number[]) {
+    input: number[] = []
+    outputValues: number[] = []
+    constructor(program: number[], input?: number[]) {
         this.program = program
+        this.input = input ?? []
     }
 
     parseInstruction(instruction: number) {
@@ -48,16 +53,21 @@ class IntCode {
         this.program[memoryPos] = param1 * param2
     }
 
-    malloc(index: number, params: number[], input: number) {
+    malloc(index: number, params: number[]) {
         const memoryPos = params[0] ? index + 1 : this.program[index + 1]
-
-        this.program[memoryPos] = input
+        const inputValue = this.input.shift()
+        if(inputValue !== undefined) {
+            this.program[memoryPos] = inputValue
+        } else {
+            console.log('there is not enought input values for this program')
+        }
     }
 
     out(index: number, params: number[]) {
         const memoryPos = params[0] ? index + 1 : this.program[index + 1]
 
         console.log(this.program[memoryPos])
+        this.outputValues.push(this.program[memoryPos])
     }
 
     jumpIfTrue(index: number, params: number[]): number | null {
@@ -105,7 +115,7 @@ class IntCode {
         }
     }
 
-    run(input: number): number[] {
+    run() {
         let i = 0
         let jumpidx = null
         programLoop: while (i < this.program.length) {
@@ -120,7 +130,7 @@ class IntCode {
                     i += 4
                     break
                 case MALLOC:
-                    this.malloc(i, params, input)
+                    this.malloc(i, params)
                     i += 2
                     break
                 case OUT:
@@ -151,22 +161,21 @@ class IntCode {
                     break
             }
         }
+    }
 
-        return this.program
+    get ampPhase(): number {
+        if(this.outputValues.length > 1) {
+            console.log('There seems to be more than 1 amp phases')
+        }
+        return this.outputValues[0]
     }
 }
 
-
-const rl = readline.createInterface({ input: stdin, output: stdout })
-const proc = new IntCode(program)
-
-async function getInput() {
-    console.log('Please provide ID:\n1. Test')
-    const inp = await rl.question('>> ')
-    if(inp === ':q') process.exit(0);
-
-    proc.run(+inp)
-    process.exit(0)
+let phase = 0
+for (let i = 0; i < amp.length; i++) {
+    const proc = new IntCode(program, [amp[i], phase])
+    proc.run()
+    phase = proc.ampPhase
 }
 
-getInput()
+process.exit(0)
