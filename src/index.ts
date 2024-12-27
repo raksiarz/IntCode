@@ -4,7 +4,7 @@ import * as readline from 'readline/promises'
 import { stdin, stdout } from 'process'
 
 const program = readFileSync(path.resolve(__dirname, 'program.txt'), 'utf-8').split(',').map(i => +i)
-const amp = readFileSync(path.resolve(__dirname, 'amp.txt'), 'utf-8').split(',').map(i => +i)
+const amp = readFileSync(path.resolve(__dirname, 'amp.txt'), 'utf-8').split(/\r\n/).map(i => i.split(',').map(i => +i))
 const rl = readline.createInterface({ input: stdin, output: stdout })
 
 const EOF = 99 as const
@@ -171,11 +171,17 @@ class IntCode {
     }
 }
 
-let phase = 0
-for (let i = 0; i < amp.length; i++) {
-    const proc = new IntCode(program, [amp[i], phase])
-    proc.run()
-    phase = proc.ampPhase
+const allPhases: number[] = []
+for(let i = 0; i < amp.length; i++) {
+    let phase = 0
+    for (let j = 0; j < amp[i].length; j++) {
+        const proc = new IntCode(program, [amp[i][j], phase])
+        proc.run()
+        phase = proc.ampPhase
+    }
+    allPhases.push(phase)
 }
+
+console.log('max phase: ', Math.max(...allPhases))
 
 process.exit(0)
